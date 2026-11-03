@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bank DApp Assignment</title>
+    <!-- ethers.js v5 -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/5.7.2/ethers.umd.min.js"></script>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f4f7f6;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+        }
+        .container {
+            background-color: #ffffff;
+            border-radius: 12px;
+            padding: 30px;
+            max-width: 500px;
+            width: 100%;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+        h2 { text-align: center; color: #2c3e50; margin-bottom: 5px; }
+        .student-info {
+            text-align: center;
+            background-color: #eef2f5;
+            padding: 10px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            color: #34495e;
+            font-weight: bold;
+        }
+        .btn {
+            width: 100%;
+            padding: 12px;
+            border: none;
+            border-radius: 6px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            margin-bottom: 15px;
+            transition: 0.3s;
+        }
+        .btn-connect { background-color: #f39c12; color: white; }
+        .btn-connect:hover { background-color: #d68910; }
+        .btn-action { background-color: #2980b9; color: white; margin-top: 5px; }
+        .btn-action:hover { background-color: #21618c; }
+        .card {
+            border: 1px solid #e1e8ed;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+        }
+        label { font-weight: bold; color: #2c3e50; display: block; margin-bottom: 5px; }
+        input {
+            width: 95%;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+            font-size: 14px;
+        }
+        .status { font-size: 14px; color: #7f8c8d; word-break: break-all; }
+        .balance-box { font-size: 20px; color: #27ae60; font-weight: bold; text-align: center; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>Bank DApp System</h2>
+    
+    <!-- ส่วนแสดงรหัสนักศึกษา และ ชื่อ-สกุล -->
+    <div class="student-info">
+        รหัสนักศึกษา: 66028239 <br>
+        ชื่อ-นามสกุล: นาย ภูริทัศน์ ตั้งพัฒนาสมบุญ
+    </div>
+
+    <!-- ปุ่มเชื่อมต่อ Metamask -->
+    <button id="connectBtn" class="btn btn-connect" onclick="connectWallet()">เชื่อมต่อ MetaMask</button>
+    <div class="status" id="accountStatus">สถานะ:ยังไม่ได้เชื่อมต่อ Wallet</div>
+
+    <hr style="margin: 20px 0;">
+
+    <!-- CheckBalance -->
+    <div class="card">
+        <label>ยอดเงินคงเหลือใน Bank Contract:</label>
+        <div class="balance-box" id="balanceDisplay">0 ETH</div>
+        <button class="btn btn-action" onclick="checkBalance()">CheckBalance (ดึงยอดเงิน)</button>
+    </div>
+
+    <!-- Deposit -->
+    <div class="card">
+        <label>Deposit (ฝากเงิน):</label>
+        <input type="number" id="depositAmount" placeholder="จำนวน ETH ที่ต้องการฝาก" step="0.001">
+        <button class="btn btn-action" style="background-color: #27ae60;" onclick="deposit()">ฝากเงิน (Deposit)</button>
+    </div>
+
+    <!-- Withdraw -->
+    <div class="card">
+        <label>Withdraw (ถอนเงิน):</label>
+        <input type="number" id="withdrawAmount" placeholder="จำนวน ETH ที่ต้องการถอน" step="0.001">
+        <button class="btn btn-action" style="background-color: #c0392b;" onclick="withdraw()">ถอนเงิน (Withdraw)</button>
+    </div>
+</div>
+
+<script>
+    // 1. ระบุ Contract Address บน Sepolia Testnet (เปลี่ยนใส่ Address ของคุณ)
+    const contractAddress = "0xDc632529d982F722136177862807a0B19D386Ab5";
+
+    // 2. ABI ของ Smart Contract ตามโจทย์
+    const contractABI = [
+        "function deposit() public payable",
+        "function withdraw(uint256 amount) public",
+        "function checkBlance() public view returns (uint256)",
+        "event Deposit(address indexed owner, uint256 amount)",
+        "event Withdraw(address indexed owner, uint256 amount)"
+    ];
+
+    let provider;
+    let signer;
+    let bankContract;
+
+    // เชื่อมต่อ MetaMask
+    async function connectWallet() {
+        if (typeof window.ethereum !== 'undefined') {
+            try {
+                await window.ethereum.request({ method: 'eth_requestAccounts' });
+                provider = new ethers.providers.Web3Provider(window.ethereum);
+                signer = provider.getSigner();
+                const userAddress = await signer.getAddress();
+                
+                document.getElementById('accountStatus').innerText = "เชื่อมต่อแล้ว: " + userAddress;
+                document.getElementById('connectBtn').innerText = "เชื่อมต่อสำเร็จ";
+                document.getElementById('connectBtn').style.backgroundColor = "#27ae60";
+
+                bankContract = new ethers.Contract(contractAddress, contractABI, signer);
+                checkBalance();
+            } catch (error) {
+                alert("การเชื่อมต่อล้มเหลว: " + error.message);
+            }
+        } else {
+            alert("กรุณาติดตั้ง MetaMask ใน เบราว์เซอร์ของคุณ!");
+        }
+    }
+
+    // ฟังก์ชัน CheckBalance (สะกดตามชื่อฟังก์ชันในโจทย์ checkBlance)
+    async function checkBalance() {
+        if (!bankContract) return alert("กรุณาเชื่อมต่อ MetaMask ก่อน!");
+        try {
+            const balanceWei = await bankContract.checkBlance();
+            const balanceEth = ethers.utils.formatEther(balanceWei);
+            document.getElementById('balanceDisplay').innerText = balanceEth + " ETH";
+        } catch (error) {
+            console.error(error);
+            alert("ไม่สามารถดึงยอดเงินได้: " + error.message);
+        }
+    }
+
+    // ฟังก์ชัน Deposit
+    async function deposit() {
+        if (!bankContract) return alert("กรุณาเชื่อมต่อ MetaMask ก่อน!");
+        const amountEth = document.getElementById('depositAmount').value;
+        if (!amountEth || amountEth <= 0) return alert("กรุณากรอกจำนวน ETH ที่ถูกต้อง");
+
+        try {
+            const tx = await bankContract.deposit({
+                value: ethers.utils.parseEther(amountEth)
+            });
+            alert("กำลังทำรายการฝากเงิน... กรุณารอสักครู่");
+            await tx.wait();
+            alert("ฝากเงินสำเร็จ!");
+            checkBalance();
+        } catch (error) {
+            console.error(error);
+            alert("ฝากเงินล้มเหลว: " + error.message);
+        }
+    }
+
+    // ฟังก์ชัน Withdraw
+    async function withdraw() {
+        if (!bankContract) return alert("กรุณาเชื่อมต่อ MetaMask ก่อน!");
+        const amountEth = document.getElementById('withdrawAmount').value;
+        if (!amountEth || amountEth <= 0) return alert("กรุณากรอกจำนวน ETH ที่ต้องการถอน");
+
+        try {
+            const amountWei = ethers.utils.parseEther(amountEth);
+            const tx = await bankContract.withdraw(amountWei);
+            alert("กำลังทำรายการถอนเงิน... กรุณารอสักครู่");
+            await tx.wait();
+            alert("ถอนเงินสำเร็จ!");
+            checkBalance();
+        } catch (error) {
+            console.error(error);
+            alert("ถอนเงินล้มเหลว: " + error.message);
+        }
+    }
+</script>
+
+</body>
+</html>
