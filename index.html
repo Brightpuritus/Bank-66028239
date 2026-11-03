@@ -126,7 +126,19 @@
     async function connectWallet() {
         if (typeof window.ethereum !== 'undefined') {
             try {
+                // ขอสิทธิ์เชื่อมต่อ MetaMask
                 await window.ethereum.request({ method: 'eth_requestAccounts' });
+                
+                // ตรวจสอบและบังคับให้สลับไป Sepolia Testnet (Chain ID 0xaa36a7)
+                try {
+                    await window.ethereum.request({
+                        method: 'wallet_switchEthereumChain',
+                        params: [{ chainId: '0xaa36a7' }],
+                    });
+                } catch (switchError) {
+                    console.log("กรุณาสลับเครือข่ายเป็น Sepolia บน MetaMask");
+                }
+
                 provider = new ethers.providers.Web3Provider(window.ethereum);
                 signer = provider.getSigner();
                 const userAddress = await signer.getAddress();
@@ -136,7 +148,9 @@
                 document.getElementById('connectBtn').style.backgroundColor = "#27ae60";
 
                 bankContract = new ethers.Contract(contractAddress, contractABI, signer);
-                checkBalance();
+                
+                // เรียกดูยอดเงินหลังจากเชื่อมต่อสำเร็จ
+                await checkBalance();
             } catch (error) {
                 alert("การเชื่อมต่อล้มเหลว: " + error.message);
             }
